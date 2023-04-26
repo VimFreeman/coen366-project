@@ -2,11 +2,27 @@
 
 import sys
 import socket
+import time
 
 def main(args):
+    # parse cli arguments
     (conn, ip, port, debug) = parse_cli(args)
-    
-    
+
+    # create correct type of socket
+    sock = socket.socket(socket.AF_INET, conn)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+    # attempt to connect to server if TCP
+    if conn == socket.SOCK_STREAM:
+        status = sock.connect_ex((ip, port))
+        while (status != 0):
+            print ("TCP connection failed.. retrying in 1 second.")
+            time.sleep(1)
+        print ("TCP connection established")
+    else:
+        print ("Using UDP, no connection required")
+
+
 # connect to server using tcp/udp ip and port and set debug flag
 
 # start cli and wait for input
@@ -63,8 +79,8 @@ def main(args):
 def parse_cli(args):
     # parse connection type
     conn = args[1]
-    if conn.lower() == "udp": conn = 0
-    elif conn.lower() == "tcp": conn = 1
+    if conn.lower() == "udp": conn = socket.SOCK_DGRAM
+    elif conn.lower() == "tcp": conn = socket.SOCK_STREAM
     else: sys.exit("Error: Invalid connection type")
 
     # parse ip
@@ -76,8 +92,8 @@ def parse_cli(args):
             sys.exit("Error: Invalid IP address")
 
     # parse port
-    port = args[3]
-    if int(port) < 0 or int(port) > 65535:
+    port = int(args[3])
+    if port < 1 or port > 65535:
         sys.exit("Error: Invalid port number")
 
     # parse debug
