@@ -4,11 +4,14 @@ import sys
 import socket
 import time
 
+sock = socket.socket() # might cause problems?
+
 def main(args):
     # parse cli arguments
     (conn, ip, port, debug) = parse_cli(args)
 
     # create correct type of socket
+    global sock
     sock = socket.socket(socket.AF_INET, conn)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
@@ -22,40 +25,75 @@ def main(args):
     else:
         print ("Using UDP, no connection required")
 
+    # connection is good, now we prompt the user for commands until "bye"
+    while(True):
+        command = input("myFTP>")
+        command = command.split(" ")
 
-# connect to server using tcp/udp ip and port and set debug flag
+        # parse first argument and call respective function
+        match(command[0]): 
+            case "":
+                continue
+            case "help":
+                help()
+            case "put":
+                put(command)
+            case "get":
+                get(command)
+            case "change":
+                change(command)
+            case "bye":
+                bye()
+            case _:
+                print("Uknown command")
+                continue
 
-# start cli and wait for input
 
-# parse input
+def get(command):
+    # call listen
+    return
+    # 001
+    # Filename length (5bits)
+    # filename
 
-# switch case
-    # put
-        # 000
-        # filename length (5bits)
-        # filename
-        # file size (4 bytes)
-        # file data
 
-    # get
-        # 001
-        # Filename length (5bits)
-        # filename
+def put(command):
+    # call listen
+    return
+    # 000
+    # filename length (5bits)
+    # filename
+    # file size (4 bytes)
+    # file data
 
-    # change
-        # 010
-        # old filename length (5bits)
-        # old filename
-        # new filename length (5bits)
-        # new filename
 
-    # help
-        # 011
-        # 5 bits unused
+def change(command):
+    # call listen
+    return
+    # 010
+    # old filename length (5bits)
+    # old filename
+    # new filename length (5bits)
+    # new filename
 
-    # bye >> disconnect and exit
 
-# listen for response
+def help():
+    # call listen
+    return
+    # 011
+    # 5 bits unused
+
+
+def bye():
+    global sock
+    if sock.proto == socket.SOCK_STREAM:
+        sock.shutdown(socket.SHUT_RD)
+        sys.exit("Connection closed and program terminated")    
+    else:
+        sys.exit("Nothing to close, program terminated.")
+
+def listen():
+    # receive 1 byte and figure out what to do next using switch
 
 # switch case
     # 000xxxxx >> correct put or change request
@@ -75,6 +113,7 @@ def main(args):
     # 110
     # length data (5bits)
     # help data
+    return
 
 def parse_cli(args):
     # parse connection type
@@ -106,5 +145,5 @@ def parse_cli(args):
 
 if __name__ == "__main__":
     if len(sys.argv) < 5: 
-        sys.exit("Missing arguments. Usage: client.py [tcp/udp] [ip] [port] [0/1](debug)")
+        sys.exit("Missing arguments. Usage: 'client.py [tcp/udp] [ip] [port] [0/1](debug)'")
     main(sys.argv)
