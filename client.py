@@ -1,5 +1,12 @@
 #!/bin/python
 
+import sys
+import socket
+
+def main(args):
+    (conn, ip, port, debug) = parse_cli(args)
+    
+    
 # connect to server using tcp/udp ip and port and set debug flag
 
 # start cli and wait for input
@@ -52,3 +59,35 @@
     # 110
     # length data (5bits)
     # help data
+
+def parse_cli(args):
+    # parse connection type
+    conn = args[1]
+    if conn.lower() is "udp": conn = 0
+    elif conn.lower() is "tcp": conn = 1
+    else: sys.exit("Error: Invalid connection type")
+
+    # parse ip
+    ip = args[2]
+    temp = ip.split('.')
+    for num in temp:
+        if int(num) < 0 or int(num) > 255:
+            sys.exit("Error: Invalid IP address")
+
+    # parse port
+    port = args[3]
+    if int(port) < 0 or int(port) > 65535:
+        sys.exit("Error: Invalid port number")
+
+    # parse debug
+    debug = args[4]
+    if debug == 1: debug = True
+    else: debug = False
+
+    return (conn, ip, port, debug)
+
+
+if __name__ == "__main__":
+    if len(sys.argv) < 5: 
+        sys.exit("Missing arguments. Usage: client.py [tcp/udp] [ip] [port] [0/1](debug)")
+    main(sys.argv)
