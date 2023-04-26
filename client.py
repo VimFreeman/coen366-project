@@ -63,13 +63,14 @@ def main(args):
 def parse_cli(args):
     # parse connection type
     conn = args[1]
-    if conn.lower() is "udp": conn = 0
-    elif conn.lower() is "tcp": conn = 1
+    if conn.lower() == "udp": conn = 0
+    elif conn.lower() == "tcp": conn = 1
     else: sys.exit("Error: Invalid connection type")
 
     # parse ip
     ip = args[2]
     temp = ip.split('.')
+    if len(temp) < 4: sys.exit("Error: Invalid IP address")
     for num in temp:
         if int(num) < 0 or int(num) > 255:
             sys.exit("Error: Invalid IP address")
