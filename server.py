@@ -73,9 +73,10 @@ def handle_request(client_socket, client_address, data):
             with open(filename, 'rb') as f:
                 file_data = f.read()
                 file_size = len(file_data).to_bytes(4, byteorder='big')
-                print(f'Sending {filename} ({file_size} bytes) to {client_address}')
+
+                print(f'Sending {filename} ({len(file_data)} bytes) to {client_address}')
                 response = bytearray()
-                response = data  # 001 response is same as request opcode for correct GET request.
+                response.extend(data)  # 001 response is same as request opcode for correct GET request.
                 response.extend(file_size)
                 response.extend(file_data)
         else:
@@ -108,7 +109,7 @@ def handle_request(client_socket, client_address, data):
         encoded_help_len = help_len.to_bytes(1, byteorder='big') #fit into 1 byte
 
         response = bytearray()
-        response.append(0b11000000 | encoded_help_len) #110 HELP response
+        response.append(0b11000000 | encoded_help_len[0]) #110 HELP response
         response.extend(help_string.encode())
     ################################ UNKNOWN REQUEST #################################################################
     else:
@@ -120,7 +121,7 @@ def handle_request(client_socket, client_address, data):
     #send response
 
     client_socket.sendto(response,client_address)
-
+    return
 
    
 def parse_cli(args):
