@@ -29,7 +29,7 @@ def main(args):
                     client_socket.close()
                     break
                 print(f"TCP connection established with {client_address}")
-                handle_request(client_socket, client_address, data)
+                handle_request(client_socket, client_address, data, port)
             time.sleep(2)
             client_socket.close()
 
@@ -42,9 +42,9 @@ def main(args):
         while True:
             data, client_address = server_socket.recvfrom(BUFFER_SIZE)  
             print(f"UDP packet received from {client_address}")
-            handle_request(server_socket, client_address, data)
+            handle_request(server_socket, client_address, data, port)
 
-def handle_request(client_socket, client_address, data):
+def handle_request(client_socket, client_address, data, port):
     opcode = (data[0] & 0b11100000)>>5
     # PUT request.
     if opcode == 0:
@@ -84,9 +84,18 @@ def handle_request(client_socket, client_address, data):
                 response.extend(data)  # 001 response is same as request opcode for correct GET request.
                 response.extend(file_size)
                 response.extend(file_data)
+
+                bytes_sent = 0
+                bytes_to_send = len(file_data)
+                while bytes_sent < bytes_to_send:
+                    payload = data[bytes_sent:bytes_sent+BUFFER_SIZE]
+                    bytes_sent += BUFFER_SIZE
+                    client_socket.sendto(payload, (client_address,port))
         else:
             response = bytearray(1)
             response[0] = 0b01000000  # Set response code to 010 Error-File Not Found.
+
+
 
     # CHANGE request.
     ################################ CHANGE REQUEST #################################################################
@@ -125,8 +134,9 @@ def handle_request(client_socket, client_address, data):
     ################################ SEND REQUEST #################################################################
     #send response
 
-    client_socket.sendto(response,client_address)
+    client_socket.sendto(response,client_address,port)
     return
+
 
    
 def parse_cli(args):
