@@ -63,49 +63,56 @@ def put(command):
             file_data = f.read()
             file_size = os.path.getsize(filename)
             file_size_encoded = file_size.to_bytes(4, byteorder="big")
-            response = bytearray()
-            response.append(0b000 << 5 | filename_length)  # 000 opcode for put request
-            response.extend(filename.encode())
-            response.extend(file_size_encoded)
-            response.extend(file_data)
+            request = bytearray()
+            request.append(0b000 << 5 | filename_length)  # 000 opcode for put request
+            request.extend(filename.encode())
+            request.extend(file_size_encoded)
+            request.extend(file_data)
     else:
         print ("File does not exist.")
         return
 
-    send(response)
+    send(request)
     listen()
     return
-    # 000
-    # filename length (5bits)
-    # filename
-    # file size (4 bytes)
-    # file data
 
 
 def get(command):
+    filename = command[1]
+    filename_length = len(filename)
+    request = bytearray()
+    request.append(0b001 << 5 | filename_length)
+    request.extend(filename.encode())
+    
+    send(request)
+    listen()
 
-    # call listen
     return
-    # 001
-    # Filename length (5bits)
-    # filename
 
 
 def change(command):
-    # call listen
+    old_filename = command[1]
+    old_filename_length = len(old_filename)
+    new_filename = command[2]
+    new_filename_length = len(new_filename)
+    request = bytearray()
+    request.append(0b001 << 5 | old_filename_length)
+    request.extend(old_filename.encode())
+    request.append(0b000 << 5 | new_filename_length)
+    request.extend(new_filename.encode())
+
+    send(request)
+    listen()
     return
-    # 010
-    # old filename length (5bits)
-    # old filename
-    # new filename length (5bits)
-    # new filename
 
 
 def help():
-    # call listen
+    request = bytearray()
+    request.append(0b01100000)
+
+    send(request)
+    listen()
     return
-    # 011
-    # 5 bits unused
 
 
 def bye():
@@ -121,37 +128,42 @@ def listen():
     opcode = (data[0] & 0b11100000) >> 5
 
     match opcode:
-        case 000:
+        case 000: # Correct put/change request
+            print("File uploaded/renamed successfully")
 
-        case 001:
+        case 001: # Get request response
+            filename_length = data[0] & 0b11111
+            filename = data[1:filename_length]
+            file_size = int.from_bytes(data[filename_length:filename_length+4])
+            file_data = data[filename_length+4::]
 
-        case 010:
+            with open(filename, 'wb') as f:
+                f.write(file_data)
 
-        case 011:
+            remaining_bytes = file_size - (BUFFER_SIZE - len(file_data))
+            while (remaining_bytes >= BUFFER_SIZE):
+                data = sock.recv(BUFFER_SIZE)
+                with open(filename, 'wb') as f:
+                    f.write(file_data)
+                remaining_bytes = remaining_bytes - BUFFER_SIZE
 
-        case 101:
+            data = sock.recv(remaining_bytes)
+            with open(filename, 'wb') as f:
+                f.write(file_data)
 
-        case 110:
-        
-        case _:
-# switch case
-    # 000xxxxx >> correct put or change request
+        case 010: # File not found
+            print("Error: File not found")
+        case 011: # Unknown request
+            print("Error: Uknown request")
+        case 101: # Unsuccessful change
+            print("Error: Change request unsuccessful")
+        case 110: # Help request response
+            help_length = data[0] &0b11111
+            help = data[1:help_length]
+            print(help)
+        case _: # default case
+            print("Error: Server response unknown")
 
-    # 001
-    # filename length (5bits)
-    # filename
-    # file size (4bytes)
-    # file data
-
-    # 010xxxxx >> error - file not found
-
-    # 011xxxxx >> error - unknown request
-
-    # 101xxxxx >> error - unsuccessful change
-
-    # 110
-    # length data (5bits)
-    # help data
     return
 
 # sends data in 4kB chunks
