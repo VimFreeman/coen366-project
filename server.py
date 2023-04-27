@@ -14,21 +14,24 @@ def main(args):
     # Start server using TCP/UDP, IP and port with debug flag.
     if conn == socket.SOCK_STREAM:
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+
         server_socket.bind((ip, port))
+        server_socket.listen(1)  # Listen for 1 connection.
+        print(f'TCP server listening on {ip}:{port}')
         while True:
-            server_socket.listen(1)  # Listen for 1 connection.
-            print(f'TCP server listening on {ip}:{port}')
+            client_socket, client_address = server_socket.accept()
+            print(f"TCP connection established with {client_address}")
             while True:
-                client_socket, client_address = server_socket.accept()
                 data = client_socket.recv(BUFFER_SIZE)
                 if not data:
                     print(f"No data received from {client_address}")
                     client_socket.close()
                     break
-                else:
-                    print(f"TCP connection established with {client_address}")
-                    handle_request(client_socket, client_address, data)
+                print(f"TCP connection established with {client_address}")
+                handle_request(client_socket, client_address, data)
             time.sleep(2)
+            client_socket.close()
 
 
     else:
@@ -50,19 +53,21 @@ def handle_request(client_socket, client_address, data):
         file_size = int.from_bytes(data[filename_length+1:filename_length+5], byteorder='big')
         print(f'Received PUT request from {client_address}: {filename} ({file_size} bytes)')
         file_data = data[filename_length+5:]
-        count = range(file_size//BUFFER_SIZE)
+        print(file_size,"|",file_size//BUFFER_SIZE,"|",file_size % BUFFER_SIZE )
+        count = range((file_size) //BUFFER_SIZE-1)
         with open(filename, 'wb') as f:
             for i in count:
+                print(i,"|",count)
                 f.write(file_data)
                 file_data = client_socket.recv(BUFFER_SIZE)
-            f.write(file_data)
-            
-        remaining_bytes = file_size % BUFFER_SIZE
-        if remaining_bytes > 0:
-            file_data = client_socket.recv(remaining_bytes)
-            f.write(file_data)
+            f.write(file_data)    
+            remaining_bytes = (file_size+filename_length+5) % BUFFER_SIZE
+            if remaining_bytes > 0:
+                file_data = client_socket.recv(remaining_bytes)
+                f.write(file_data)
         response = bytearray(1)
         response[0] = 0b00000000  # Set response code to 000.
+        data=0
 
     # GET request.
     elif opcode == 1: 

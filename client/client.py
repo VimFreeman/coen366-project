@@ -27,6 +27,7 @@ def main(args):
         while (status != 0):
             print ("TCP connection failed.. retrying in 1 second.")
             time.sleep(1)
+            status = sock.connect_ex((ip, port))
         print (f"TCP connection established with {ip}:{port}")
     else:
         print ("Using UDP, no connection required")
