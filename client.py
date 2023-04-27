@@ -120,7 +120,7 @@ def help():
 
 def bye():
     global sock
-    if sock.proto == socket.SOCK_STREAM:
+    if sock.type == socket.SOCK_STREAM:
         sock.shutdown(socket.SHUT_RD)
         sys.exit("Connection closed and program terminated")    
     else:
