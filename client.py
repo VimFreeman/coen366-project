@@ -1,8 +1,11 @@
 #!/bin/python
 
+import os
 import sys
 import socket
 import time
+
+BUFFER_SIZE = 4096 # send or receive 4096 bytes at a time.
 
 sock = socket.socket() # might cause problems?
 
@@ -21,7 +24,7 @@ def main(args):
         while (status != 0):
             print ("TCP connection failed.. retrying in 1 second.")
             time.sleep(1)
-        print ("TCP connection established")
+        print (f"TCP connection established with {ip}:{port}")
     else:
         print ("Using UDP, no connection required")
 
@@ -48,23 +51,44 @@ def main(args):
                 print("Uknown command")
                 continue
 
-
-def get(command):
-    # call listen
-    return
-    # 001
-    # Filename length (5bits)
-    # filename
-
-
 def put(command):
-    # call listen
+    filename = command[1]
+    filename_length = len(filename) 
+    if filename_length > 31:
+        print("Filename too long. Maximum 31 characters")
+        return
+    
+    if os.path.exists(filename):
+        with open(filename, 'rb') as f:
+            file_data = f.read()
+            file_size = os.path.getsize(filename)
+            file_size_encoded = file_size.to_bytes(4, byteorder="big")
+            response = bytearray()
+            response.append(0b000 << 5 | filename_length)  # 000 opcode for put request
+            response.extend(filename.encode())
+            response.extend(file_size_encoded)
+            response.extend(file_data)
+    else:
+        print ("File does not exist.")
+        return
+
+    send(response)
+    listen()
     return
     # 000
     # filename length (5bits)
     # filename
     # file size (4 bytes)
     # file data
+
+
+def get(command):
+
+    # call listen
+    return
+    # 001
+    # Filename length (5bits)
+    # filename
 
 
 def change(command):
@@ -93,8 +117,23 @@ def bye():
         sys.exit("Nothing to close, program terminated.")
 
 def listen():
-    # receive 1 byte and figure out what to do next using switch
+    data = sock.recv(BUFFER_SIZE)
+    opcode = (data[0] & 0b11100000) >> 5
 
+    match opcode:
+        case 000:
+
+        case 001:
+
+        case 010:
+
+        case 011:
+
+        case 101:
+
+        case 110:
+        
+        case _:
 # switch case
     # 000xxxxx >> correct put or change request
 
@@ -114,6 +153,16 @@ def listen():
     # length data (5bits)
     # help data
     return
+
+# sends data in 4kB chunks
+def send(data):
+    bytes_sent = 0;
+    bytes_to_send = len(data)
+
+    while bytes_sent <= bytes_to_send:
+        payload = data[bytes_sent:bytes_sent+BUFFER_SIZE]
+        bytes_sent += BUFFER_SIZE
+        sock.sendall(payload)
 
 def parse_cli(args):
     # parse connection type
