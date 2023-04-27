@@ -80,7 +80,7 @@ def handle_request(client_socket, client_address, data):
                 file_size = len(file_data).to_bytes(4, byteorder='big')
                 print(f'Sending {filename} ({file_size} bytes) to {client_address}')
                 response = bytearray()
-                response = data  # 001 response is same as request opcode for correct GET request.
+                response.extend(data)  # 001 response is same as request opcode for correct GET request.
                 response.extend(file_size)
                 response.extend(file_data)
         else:
