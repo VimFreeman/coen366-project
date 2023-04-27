@@ -8,9 +8,12 @@ import time
 BUFFER_SIZE = 4096 # send or receive 4096 bytes at a time.
 
 sock = socket.socket() # might cause problems?
+ip = 0
+port = 0
 
 def main(args):
     # parse cli arguments
+    global ip, port
     (conn, ip, port, debug) = parse_cli(args)
 
     # create correct type of socket
@@ -40,11 +43,11 @@ def main(args):
             case "help":
                 help()
             case "put":
-                put(command)
+                put(command,)
             case "get":
-                get(command)
+                get(command,)
             case "change":
-                change(command)
+                change(command,)
             case "bye":
                 bye()
             case _:
@@ -128,10 +131,10 @@ def listen():
     opcode = (data[0] & 0b11100000) >> 5
 
     match opcode:
-        case 000: # Correct put/change request
+        case 0: # Correct put/change request
             print("File uploaded/renamed successfully")
 
-        case 001: # Get request response
+        case 1: # Get request response
             filename_length = data[0] & 0b11111
             filename = data[1:filename_length]
             file_size = int.from_bytes(data[filename_length:filename_length+4])
@@ -151,13 +154,13 @@ def listen():
             with open(filename, 'wb') as f:
                 f.write(file_data)
 
-        case 010: # File not found
+        case 2: # File not found
             print("Error: File not found")
-        case 011: # Unknown request
+        case 3: # Unknown request
             print("Error: Uknown request")
-        case 101: # Unsuccessful change
+        case 5: # Unsuccessful change
             print("Error: Change request unsuccessful")
-        case 110: # Help request response
+        case 6: # Help request response
             help_length = data[0] &0b11111
             help = data[1:help_length]
             print(help)
@@ -168,13 +171,15 @@ def listen():
 
 # sends data in 4kB chunks
 def send(data):
+    global ip, port
+
     bytes_sent = 0;
     bytes_to_send = len(data)
 
     while bytes_sent <= bytes_to_send:
         payload = data[bytes_sent:bytes_sent+BUFFER_SIZE]
         bytes_sent += BUFFER_SIZE
-        sock.sendall(payload)
+        sock.sendto(payload, (ip,port))
 
 def parse_cli(args):
     # parse connection type
