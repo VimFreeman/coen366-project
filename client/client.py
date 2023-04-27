@@ -130,7 +130,7 @@ def bye():
 def listen():
     data = sock.recv(BUFFER_SIZE)
     if len(data) == 0: 
-        return
+        data = sock.recv(BUFFER_SIZE)
     opcode = (data[0] & 0b11100000) >> 5
 
     match opcode:
