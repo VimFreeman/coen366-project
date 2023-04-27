@@ -27,6 +27,7 @@ def main(args):
         while (status != 0):
             print ("TCP connection failed.. retrying in 1 second.")
             time.sleep(1)
+            status = sock.connect_ex((ip, port))
         print (f"TCP connection established with {ip}:{port}")
     else:
         print ("Using UDP, no connection required")
@@ -136,22 +137,23 @@ def listen():
 
         case 1: # Get request response
             filename_length = data[0] & 0b11111
-            filename = data[1:filename_length]
-            file_size = int.from_bytes(data[filename_length:filename_length+4])
-            file_data = data[filename_length+4::]
+            print(filename_length)
+            filename = data[1:filename_length+1]
+            print(filename.decode())
+            file_size = int.from_bytes(data[filename_length+1:filename_length+5], 'big')
+            print(file_size)
+            file_data = data[filename_length+5::]
 
+            count = range(file_size//BUFFER_SIZE)
             with open(filename, 'wb') as f:
+                for i in count:
+                    f.write(file_data)
+                    file_data = sock.recv(BUFFER_SIZE)
                 f.write(file_data)
 
-            remaining_bytes = file_size - (BUFFER_SIZE - len(file_data))
-            while (remaining_bytes >= BUFFER_SIZE):
-                data = sock.recv(BUFFER_SIZE)
-                with open(filename, 'wb') as f:
-                    f.write(file_data)
-                remaining_bytes = remaining_bytes - BUFFER_SIZE
-
-            data = sock.recv(remaining_bytes)
-            with open(filename, 'wb') as f:
+            remaining_bytes = file_size % BUFFER_SIZE
+            if remaining_bytes > 0:
+                file_data = sock.recv(remaining_bytes)
                 f.write(file_data)
 
         case 2: # File not found
