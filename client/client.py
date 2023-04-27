@@ -100,7 +100,7 @@ def change(command):
     new_filename = command[2]
     new_filename_length = len(new_filename)
     request = bytearray()
-    request.append(0b001 << 5 | old_filename_length)
+    request.append(0b010 << 5 | old_filename_length)
     request.extend(old_filename.encode())
     request.append(0b000 << 5 | new_filename_length)
     request.extend(new_filename.encode())
@@ -129,6 +129,8 @@ def bye():
 
 def listen():
     data = sock.recv(BUFFER_SIZE)
+    if len(data) == 0: 
+        return
     opcode = (data[0] & 0b11100000) >> 5
 
     match opcode:
@@ -146,15 +148,12 @@ def listen():
                 for i in count:
                     f.write(file_data)
                     file_data = sock.recv(BUFFER_SIZE)
-                    print(f"read: {i*BUFFER_SIZE} bytes") 
                 f.write(file_data)
 
-            remaining_bytes = (filename_length + file_size + 5) % BUFFER_SIZE
-            if remaining_bytes > 0:
-                file_data = sock.recv(remaining_bytes)
-                f.write(file_data)
-
-            print("exiting get case")
+                remaining_bytes = file_size % BUFFER_SIZE
+                if remaining_bytes > 0:
+                    file_data = sock.recv(remaining_bytes)
+                    f.write(file_data)
 
         case 2: # File not found
             print("Error: File not found")
@@ -163,8 +162,8 @@ def listen():
         case 5: # Unsuccessful change
             print("Error: Change request unsuccessful")
         case 6: # Help request response
-            help_length = data[0] &0b11111
-            help = data[1:help_length]
+            help_length = data[0] & 0b11111
+            help = data[1:help_length+1].decode()
             print(help)
         case _: # default case
             print("Error: Server response unknown")
@@ -178,9 +177,13 @@ def send(data):
     bytes_sent = 0;
     bytes_to_send = len(data)
 
-    while bytes_sent < bytes_to_send:
+    while bytes_sent <= bytes_to_send:
         payload = data[bytes_sent:bytes_sent+BUFFER_SIZE]
         bytes_sent += BUFFER_SIZE
+        sock.sendto(payload, (ip,port))
+    remaining_bytes = len(data) % BUFFER_SIZE
+    if remaining_bytes > 0:
+        payload = data[bytes_sent:bytes_sent+remaining_bytes]
         sock.sendto(payload, (ip,port))
 
 def parse_cli(args):

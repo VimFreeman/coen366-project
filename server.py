@@ -45,6 +45,8 @@ def main(args):
             handle_request(server_socket, client_address, data, port)
 
 def handle_request(client_socket, client_address, data, port):
+    if len(data) == 0:
+        return
     opcode = (data[0] & 0b11100000)>>5
     # PUT request.
     if opcode == 0:
@@ -53,11 +55,9 @@ def handle_request(client_socket, client_address, data, port):
         file_size = int.from_bytes(data[filename_length+1:filename_length+5], byteorder='big')
         print(f'Received PUT request from {client_address}: {filename} ({file_size} bytes)')
         file_data = data[filename_length+5:]
-        print(file_size,"|",file_size//BUFFER_SIZE,"|",file_size % BUFFER_SIZE )
         count = range((file_size) //BUFFER_SIZE-1)
         with open(filename, 'wb') as f:
             for i in count:
-                print(i,"|",count)
                 f.write(file_data)
                 file_data = client_socket.recv(BUFFER_SIZE)
             f.write(file_data)    
@@ -86,11 +86,16 @@ def handle_request(client_socket, client_address, data, port):
                 response.extend(file_data)
 
                 bytes_sent = 0
-                bytes_to_send = len(file_data)
-                while bytes_sent < bytes_to_send:
-                    payload = data[bytes_sent:bytes_sent+BUFFER_SIZE]
+                bytes_to_send = len(response)
+                while bytes_sent <= bytes_to_send:
+                    payload = response[bytes_sent:bytes_sent+BUFFER_SIZE]
                     bytes_sent += BUFFER_SIZE
-                    client_socket.sendto(payload, (client_address,port))
+                    client_socket.sendto(payload, client_address)
+                remaining_bytes = len(response) % BUFFER_SIZE
+                if remaining_bytes > 0:
+                    payload = response[bytes_sent:bytes_sent+remaining_bytes]
+                    client_socket.sendto(payload, client_address)
+                return
         else:
             response = bytearray(1)
             response[0] = 0b01000000  # Set response code to 010 Error-File Not Found.
@@ -118,12 +123,10 @@ def handle_request(client_socket, client_address, data, port):
     ################################ HELP REQUEST #################################################################
     elif opcode == 3:
         #help
-        help_string = "skill issue detected, Proposition: Git Gud."
-        help_len = len(help_string) & 0b00011111 #get filesize using 5 bits
-        encoded_help_len = help_len.to_bytes(1, byteorder='big') #fit into 1 byte
-
+        help_string = "Commands: get, put, change"
+        help_len = len(help_string) #get filesize using 5 bits
         response = bytearray()
-        response.append(0b11000000 | encoded_help_len[0]) #110 HELP response
+        response.append(0b11000000 | help_len) #110 HELP response
         response.extend(help_string.encode())
     ################################ UNKNOWN REQUEST #################################################################
     else:
@@ -134,11 +137,10 @@ def handle_request(client_socket, client_address, data, port):
     ################################ SEND REQUEST #################################################################
     #send response
 
-    client_socket.sendto(response,client_address,port)
+    client_socket.sendto(response,client_address)
     return
 
 
-   
 def parse_cli(args):
     # parse connection type
     conn = args[1]
@@ -166,5 +168,4 @@ def parse_cli(args):
 if __name__ == "__main__":
     if len(sys.argv) < 5: 
         sys.exit("Missing arguments. Usage: 'client.py [tcp/udp] [ip] [port] [0/1](debug)'")
-        print(sys.argv)
     main(sys.argv)
