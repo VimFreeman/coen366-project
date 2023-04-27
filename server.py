@@ -2,6 +2,7 @@ import sys
 import socket
 import os
 
+BUFFER_SIZE = 4096
 
 def main(args):
     (conn,ip,port,debug) = parse_cli(args)
@@ -18,7 +19,7 @@ def main(args):
         
         while True:
             client_socket, client_address = server_socket.accept()
-            data = client_socket.recv(512)
+            data = client_socket.recv(BUFFER_SIZE)
             print(f"TCP connection established with {client_address}")
             handle_request(client_socket, client_address, data)
 
@@ -28,16 +29,16 @@ def main(args):
         print(f'UDP server listening on {ip}:{port}')
 
         while True:
-            data, client_address = server_socket.recvfrom(512)  # 512 bytes max.
+            data, client_address = server_socket.recvfrom(BUFFER_SIZE)  
             print(f"UDP packet received from {client_address}")
             handle_request(server_socket, client_address, data)
 
 def handle_request(sock, client_address, data):
-    opcode = data[0] & 0b00000111
+    opcode = (data[0] & 0b11100000)>>5
 
     # PUT request.
     if opcode == 0:
-        filename_length = (data[0] & 0b11111000) >> 3
+        filename_length = data[0] & 0b00011111
         filename = data[1:filename_length+1].decode()
         file_size = int.from_bytes(data[filename_length+1:filename_length+5], byteorder='big')
         file_data = data[filename_length+5:]
@@ -45,43 +46,37 @@ def handle_request(sock, client_address, data):
         print(f'Received PUT request from {client_address}: {filename} ({file_size} bytes)')
         
         # Check if the file exists.
+        with open(filename, 'wb') as f:
+            f.write(file_data)
+        print(f'{filename} saved successfully')
         response = bytearray(1)
-        if os.path.exists(filename):
-            print(f'{filename} already exists')
-            response[0] = 0b00000101  # 101 response for unsuccessful change.
-        else:
-            # Create new file and write data to it.
-            with open(filename, 'wb') as f:
-                f.write(file_data)
-            print(f'{filename} saved successfully')
-            response[0] = 0b00000000  # Set response code to 000.
+        response[0] = 0b00000000  # Set response code to 000.
 
     # GET request.
     elif opcode == 1: 
-        filename_length = (data[0] & 0b11111000) >> 3
+        filename_length = data[0] & 0b00011111
         filename = data[1:filename_length+1].decode()
 
         if os.path.exists(filename):
             with open(filename, 'rb') as f:
                 file_data = f.read()
-                file_size = len(file_data) & 0b11111  # Get file size using 5 bits.
-                encoded_file_size = file_size.to_bytes(1, byteorder='big')  # Fit into 1 byte.
+                file_size = len(file_data).to_bytes(4, byteorder='big')
                 print(f'Sending {filename} ({file_size} bytes) to {client_address}')
                 response = bytearray()
-                response.append(0b00000001 | (encoded_file_size<<3))  # 001 response for correct GET request.
-                response.extend(filename.encode())
+                response = data  # 001 response is same as request opcode for correct GET request.
+                response.extend(file_size)
                 response.extend(file_data)
         else:
             response = bytearray(1)
-            response[0] = 0b00000010  # Set response code to 010 Error-File Not Found.
+            response[0] = 0b01000000  # Set response code to 010 Error-File Not Found.
 
     # CHANGE request.
     ################################ CHANGE REQUEST #################################################################
     elif opcode == 2:
         #change operation
-        old_filename_length = (data[0] & 0b11111000) >> 3
+        old_filename_length = data[0] & 0b00011111
         old_filename = data[1:old_filename_length+1].decode()
-        new_filename_length = (data[old_filename_length+1] & 0b11111000) >> 3
+        new_filename_length = (data[old_filename_length+1] & 0b00011111)
         new_filename = data[old_filename_length+2:old_filename_length+new_filename_length+2].decode()
         
         response = bytearray(1)
@@ -91,23 +86,23 @@ def handle_request(sock, client_address, data):
             print(f'Received CHANGE request from {client_address}: {old_filename} -> {new_filename}')
         else:
             print(f'{old_filename} file not found')
-            response[0] = 0b00000101
+            response[0] = 0b10100000
 
     ################################ HELP REQUEST #################################################################
     elif opcode == 3:
         #help
         help_string = "skill issue detected, Proposition: Git Gud."
-        help_len = len(help_string) & 0b11111 #get filesize using 5 bits
+        help_len = len(help_string) & 0b00011111 #get filesize using 5 bits
         encoded_help_len = help_len.to_bytes(1, byteorder='big') #fit into 1 byte
 
         response = bytearray()
-        response.append(0b00000110 | encoded_help_len<<3) #110 HELP response
+        response.append(0b11000000 | encoded_help_len) #110 HELP response
         response.extend(help_string.encode())
     ################################ UNKNOWN REQUEST #################################################################
     else:
         #unkn
         response = bytearray(1)
-        response[0] = 0b00000110
+        response[0] = 0b11000000
 
     ################################ SEND REQUEST #################################################################
     #send response
