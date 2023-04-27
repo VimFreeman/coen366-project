@@ -137,23 +137,24 @@ def listen():
 
         case 1: # Get request response
             filename_length = data[0] & 0b11111
-            filename = data[1:filename_length]
-            file_size = int.from_bytes(data[filename_length:filename_length+4])
-            file_data = data[filename_length+4::]
-
+            filename = data[1:filename_length+1]
+            file_size = int.from_bytes(data[filename_length+1:filename_length+5], 'big')
+            file_data = data[filename_length+5:]
+            
+            count = range(file_size//BUFFER_SIZE-1)
             with open(filename, 'wb') as f:
-                f.write(file_data)
-
-            remaining_bytes = file_size - (BUFFER_SIZE - len(file_data))
-            while (remaining_bytes >= BUFFER_SIZE):
-                data = sock.recv(BUFFER_SIZE)
-                with open(filename, 'wb') as f:
+                for i in count:
                     f.write(file_data)
-                remaining_bytes = remaining_bytes - BUFFER_SIZE
-
-            data = sock.recv(remaining_bytes)
-            with open(filename, 'wb') as f:
+                    file_data = sock.recv(BUFFER_SIZE)
+                    print(f"read: {i*BUFFER_SIZE} bytes") 
                 f.write(file_data)
+
+            remaining_bytes = (filename_length + file_size + 5) % BUFFER_SIZE
+            if remaining_bytes > 0:
+                file_data = sock.recv(remaining_bytes)
+                f.write(file_data)
+
+            print("exiting get case")
 
         case 2: # File not found
             print("Error: File not found")
