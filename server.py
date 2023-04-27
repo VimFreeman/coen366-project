@@ -1,11 +1,12 @@
-#!/bin/python
 import sys
 import socket
 import os
 
+
 def main(args):
     (conn,ip,port,debug) = parse_cli(args)
 # Start server using TCP/UDP, IP and port with debug flag.
+    input("Press Enter to close the window...")
 
 ################################# TCP MODE ##################################################################
     # Start server using TCP/UDP, IP and port with debug flag.
@@ -138,3 +139,9 @@ def parse_cli(args):
 
     return (conn, ip, port, debug)
 
+
+if __name__ == "__main__":
+    if len(sys.argv) < 5: 
+        sys.exit("Missing arguments. Usage: 'client.py [tcp/udp] [ip] [port] [0/1](debug)'")
+        print(sys.argv)
+    main(sys.argv)
