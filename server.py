@@ -1,27 +1,35 @@
 import sys
 import socket
 import os
+import time
+
 
 BUFFER_SIZE = 4096
 
 def main(args):
     (conn,ip,port,debug) = parse_cli(args)
-# Start server using TCP/UDP, IP and port with debug flag.
-    input("Press Enter to close the window...")
+# Start server using TCP/UDP, IP and port with debug flag
 
 ################################# TCP MODE ##################################################################
     # Start server using TCP/UDP, IP and port with debug flag.
     if conn == socket.SOCK_STREAM:
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.bind((ip, port))
-        server_socket.listen(1)  # Listen for 1 connection.
-        print(f'TCP server listening on {ip}:{port}')
-        
         while True:
-            client_socket, client_address = server_socket.accept()
-            data = client_socket.recv(BUFFER_SIZE)
-            print(f"TCP connection established with {client_address}")
-            handle_request(client_socket, client_address, data)
+            server_socket.listen(1)  # Listen for 1 connection.
+            print(f'TCP server listening on {ip}:{port}')
+            while True:
+                client_socket, client_address = server_socket.accept()
+                data = client_socket.recv(BUFFER_SIZE)
+                if not data:
+                    print(f"No data received from {client_address}")
+                    client_socket.close()
+                    break
+                else:
+                    print(f"TCP connection established with {client_address}")
+                    handle_request(client_socket, client_address, data)
+            time.sleep(2)
+
 
     else:
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -33,22 +41,26 @@ def main(args):
             print(f"UDP packet received from {client_address}")
             handle_request(server_socket, client_address, data)
 
-def handle_request(sock, client_address, data):
+def handle_request(client_socket, client_address, data):
     opcode = (data[0] & 0b11100000)>>5
-
     # PUT request.
     if opcode == 0:
         filename_length = data[0] & 0b00011111
         filename = data[1:filename_length+1].decode()
         file_size = int.from_bytes(data[filename_length+1:filename_length+5], byteorder='big')
-        file_data = data[filename_length+5:]
-        
         print(f'Received PUT request from {client_address}: {filename} ({file_size} bytes)')
-        
-        # Check if the file exists.
+        file_data = data[filename_length+5:]
+        count = range(file_size//BUFFER_SIZE)
         with open(filename, 'wb') as f:
+            for i in count:
+                f.write(file_data)
+                file_data = client_socket.recv(BUFFER_SIZE)
             f.write(file_data)
-        print(f'{filename} saved successfully')
+            
+        remaining_bytes = file_size % BUFFER_SIZE
+        if remaining_bytes > 0:
+            file_data = client_socket.recv(remaining_bytes)
+            f.write(file_data)
         response = bytearray(1)
         response[0] = 0b00000000  # Set response code to 000.
 
@@ -107,7 +119,7 @@ def handle_request(sock, client_address, data):
     ################################ SEND REQUEST #################################################################
     #send response
 
-    sock.sendto(response,client_address)
+    client_socket.sendto(response,client_address)
 
 
    

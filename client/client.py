@@ -176,7 +176,7 @@ def send(data):
     bytes_sent = 0;
     bytes_to_send = len(data)
 
-    while bytes_sent <= bytes_to_send:
+    while bytes_sent < bytes_to_send:
         payload = data[bytes_sent:bytes_sent+BUFFER_SIZE]
         bytes_sent += BUFFER_SIZE
         sock.sendto(payload, (ip,port))
