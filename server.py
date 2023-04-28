@@ -23,7 +23,11 @@ def main(args):
             client_socket, client_address = server_socket.accept()
             print(f"TCP connection established with {client_address}")
             while True:
-                data = client_socket.recv(BUFFER_SIZE)
+                try:
+                    data = client_socket.recv(BUFFER_SIZE)
+                except ConnectionResetError:
+                    client_socket.close()
+                    break
                 if not data:
                     print(f"No data received from {client_address}")
                     client_socket.close()
@@ -59,7 +63,12 @@ def handle_request(client_socket, client_address, data, port):
         with open(filename, 'wb') as f:
             for i in count:
                 f.write(file_data)
-                file_data = client_socket.recv(BUFFER_SIZE)
+                
+                try:
+                    data = client_socket.recv(BUFFER_SIZE)
+                except ConnectionResetError:
+                    client_socket.close()
+                    break
             f.write(file_data)    
             remaining_bytes = (file_size+filename_length+5) % BUFFER_SIZE
             if remaining_bytes > 0:
