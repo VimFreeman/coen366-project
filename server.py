@@ -1,3 +1,5 @@
+#Nathan McDonald-Fortier ID: 40134141
+#
 import sys
 import socket
 import os
@@ -18,10 +20,12 @@ def main(args):
 
         server_socket.bind((ip, port))
         server_socket.listen(1)  # Listen for 1 connection.
-        print(f'TCP server listening on {ip}:{port}')
+        if debug:
+            print(f'TCP server listening on {ip}:{port}')
         while True:
             client_socket, client_address = server_socket.accept()
-            print(f"TCP connection established with {client_address}")
+            if debug:
+                print(f"TCP connection established with {client_address}")
             while True:
                 try:
                     data = client_socket.recv(BUFFER_SIZE)
@@ -29,11 +33,13 @@ def main(args):
                     client_socket.close()
                     break
                 if not data:
-                    print(f"No data received from {client_address}")
+                    if debug:
+                        print(f"No data received from {client_address} closing connection")
                     client_socket.close()
                     break
-                print(f"TCP connection established with {client_address}")
-                handle_request(client_socket, client_address, data, port)
+                if debug:
+                    print(f"TCP connection established with {client_address}")
+                handle_request(client_socket, client_address, data, debug)
             time.sleep(2)
             client_socket.close()
 
@@ -41,14 +47,16 @@ def main(args):
     else:
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         server_socket.bind((ip, port))
-        print(f'UDP server listening on {ip}:{port}')
+        if debug:
+            print(f'UDP server listening on {ip}:{port}')
 
         while True:
             data, client_address = server_socket.recvfrom(BUFFER_SIZE)  
-            print(f"UDP packet received from {client_address}")
-            handle_request(server_socket, client_address, data, port)
+            if debug:
+                print(f"UDP packet received from {client_address}")
+            handle_request(server_socket, client_address, data, debug)
 
-def handle_request(client_socket, client_address, data, port):
+def handle_request(client_socket, client_address, data, debug):
     if len(data) == 0:
         return
     opcode = (data[0] & 0b11100000)>>5
@@ -57,7 +65,8 @@ def handle_request(client_socket, client_address, data, port):
         filename_length = data[0] & 0b00011111
         filename = data[1:filename_length+1].decode()
         file_size = int.from_bytes(data[filename_length+1:filename_length+5], byteorder='big')
-        print(f'Received PUT request from {client_address}: {filename} ({file_size} bytes)')
+        if debug:
+            print(f'Received PUT request from {client_address}: {filename} ({file_size} bytes)')
         file_data = data[filename_length+5:]
         count = range((file_size) //BUFFER_SIZE-1)
         with open(filename, 'wb') as f:
@@ -87,8 +96,8 @@ def handle_request(client_socket, client_address, data, port):
             with open(filename, 'rb') as f:
                 file_data = f.read()
                 file_size = len(file_data).to_bytes(4, byteorder='big')
-
-                print(f'Sending {filename} ({len(file_data)} bytes) to {client_address}')
+                if debug:
+                    print(f'Sending {filename} ({len(file_data)} bytes) to {client_address}')
                 response = bytearray()
                 response.extend(data)  # 001 response is same as request opcode for correct GET request.
                 response.extend(file_size)
@@ -124,9 +133,11 @@ def handle_request(client_socket, client_address, data, port):
         if os.path.isfile(old_filename):
             os.rename(old_filename, new_filename)
             response[0]  = 0b00000000
-            print(f'Received CHANGE request from {client_address}: {old_filename} -> {new_filename}')
+            if debug:
+                print(f'Received CHANGE request from {client_address}: {old_filename} -> {new_filename}')
         else:
-            print(f'{old_filename} file not found')
+            if debug:
+                print(f'{old_filename} file not found')
             response[0] = 0b10100000
 
     ################################ HELP REQUEST #################################################################
@@ -153,23 +164,27 @@ def handle_request(client_socket, client_address, data, port):
 def parse_cli(args):
     # parse connection type
     conn = args[1]
-    if conn.lower() == "udp":
-        conn = socket.SOCK_DGRAM
-    elif conn.lower() == "tcp":
-        conn = socket.SOCK_STREAM
-    else:
-        sys.exit("Error: Invalid connection type")
+    if conn.lower() == "udp": conn = socket.SOCK_DGRAM
+    elif conn.lower() == "tcp": conn = socket.SOCK_STREAM
+    else: sys.exit("Error: Invalid connection type")
 
     # parse ip
     ip = args[2]
+    temp = ip.split('.')
+    if len(temp) < 4: sys.exit("Error: Invalid IP address")
+    for num in temp:
+        if int(num) < 0 or int(num) > 255:
+            sys.exit("Error: Invalid IP address")
 
     # parse port
     port = int(args[3])
+    if port < 1 or port > 65535:
+        sys.exit("Error: Invalid port number")
 
-    # parse debug flag
-    debug = False
-    if len(args) == 5 and args[4].lower() == "debug":
-        debug = True
+    # parse debug
+    debug = args[4]
+    if debug == 1: debug = True
+    else: debug = False
 
     return (conn, ip, port, debug)
 

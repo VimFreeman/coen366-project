@@ -1,4 +1,4 @@
-#!/bin/python
+#Nathan McDonald-Fortier ID: 40134141
 
 import os
 import sys
@@ -10,6 +10,7 @@ BUFFER_SIZE = 4096 # send or receive 4096 bytes at a time.
 sock = socket.socket() # might cause problems?
 ip = 0
 port = 0
+debug =  False
 
 def main(args):
     # parse cli arguments
@@ -25,12 +26,15 @@ def main(args):
     if conn == socket.SOCK_STREAM:
         status = sock.connect_ex((ip, port))
         while (status != 0):
-            print ("TCP connection failed.. retrying in 1 second.")
+            if debug:
+                print ("TCP connection failed.. retrying in 1 second.")
             time.sleep(1)
             status = sock.connect_ex((ip, port))
-        print (f"TCP connection established with {ip}:{port}")
+        if debug:
+            print (f"TCP connection established with {ip}:{port}")
     else:
-        print ("Using UDP, no connection required")
+        if debug:
+            print ("Using UDP, no connection required")
 
     # connection is good, now we prompt the user for commands until "bye"
     while(True):
@@ -59,7 +63,8 @@ def put(command):
     filename = command[1]
     filename_length = len(filename) 
     if filename_length > 31:
-        print("Filename too long. Maximum 31 characters")
+        if debug:
+            print("Filename too long. Maximum 31 characters")
         return
     
     if os.path.exists(filename):
@@ -73,7 +78,8 @@ def put(command):
             request.extend(file_size_encoded)
             request.extend(file_data)
     else:
-        print ("File does not exist.")
+        if debug:
+            print ("File does not exist.")
         return
 
     send(request)
@@ -135,7 +141,8 @@ def listen():
 
     match opcode:
         case 0: # Correct put/change request
-            print("File uploaded/renamed successfully")
+            if debug:
+                print("File uploaded/renamed successfully")
 
         case 1: # Get request response
             filename_length = data[0] & 0b11111
@@ -154,19 +161,25 @@ def listen():
                 if remaining_bytes > 0:
                     file_data = sock.recv(remaining_bytes)
                     f.write(file_data)
+            if debug:
+                print("File downloaded successfully")
 
         case 2: # File not found
-            print("Error: File not found")
+            if debug:
+                print("Error: File not found")
         case 3: # Unknown request
-            print("Error: Uknown request")
+            if debug:
+                print("Error: Uknown request")
         case 5: # Unsuccessful change
-            print("Error: Change request unsuccessful")
+            if debug:
+                print("Error: Change request unsuccessful")
         case 6: # Help request response
             help_length = data[0] & 0b11111
             help = data[1:help_length+1].decode()
             print(help)
         case _: # default case
-            print("Error: Server response unknown")
+            if debug:
+                print("Error: Server response unknown")
 
     return
 
