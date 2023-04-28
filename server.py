@@ -1,5 +1,6 @@
-#Nathan McDonald-Fortier ID: 40134141
-#
+# Nathan McDonald-Fortier ID: 40134141
+# Tim Freiman - 40091639
+
 import sys
 import socket
 import os
