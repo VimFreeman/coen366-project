@@ -19,6 +19,7 @@ Client Side
      robotics.png
      rocketry.png
 
+Put and get should make the files appear in the others location. backup of test files found in test folder.
 Valid commands include 
 put X           X= filname
 get X           X= filname
