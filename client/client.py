@@ -150,7 +150,7 @@ def listen():
                     file_data = sock.recv(BUFFER_SIZE)
                 f.write(file_data)
 
-                remaining_bytes = file_size % BUFFER_SIZE
+                remaining_bytes = (file_size + filename_length + 5) % BUFFER_SIZE
                 if remaining_bytes > 0:
                     file_data = sock.recv(remaining_bytes)
                     f.write(file_data)
