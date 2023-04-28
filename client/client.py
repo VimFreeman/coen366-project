@@ -1,6 +1,10 @@
 # Nathan McDonald-Fortier ID: 40134141
 # Tim Freiman - 40091639
 
+# This is the client side of the project
+
+# All code is original and written by us
+
 import os
 import sys
 import socket
